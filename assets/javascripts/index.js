@@ -1,9 +1,7 @@
-// import initializeDraggable from './initializeDraggable'
-import dragger from './dragger'
+import oranger from './oranger'
 
 function init() {
-  dragger("body")
-  // initializeDraggable()
+  oranger()
 }
 
 window.addEventListener("DOMContentLoaded", init)

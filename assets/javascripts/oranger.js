@@ -5,17 +5,19 @@ const INITIAL_RIGHT = 100
 let MINIMUM_WIDTH = 30
 
 let $container = null
-let $rangeHandle = null
+let $slider = null
 
-function init(containerSelector) {
-  $container = $(containerSelector)
-  $rangeHandle = $("#rangeHandle")
+function init() {
+  $container = $("body")
+  $slider = $(".slider")
 
-  updatePosition($rangeHandle, "left", INITIAL_LEFT)
-  updatePosition($rangeHandle, "right", INITIAL_RIGHT)
+  updatePosition($slider, "left", INITIAL_LEFT)
+  updatePosition($slider, "right", INITIAL_RIGHT)
 
-  MINIMUM_WIDTH = $("#startAtHandle").width() + $("#endAtHandle").width()
+  MINIMUM_WIDTH = $(".sliderHandle1").addClass("dragable").data("move", "left").width() +
+                  $(".sliderHandle2").addClass("dragable").data("move", "right").width()
 
+  $(".sliderRange").addClass("dragable").data("move", "left-right")
   $("body")
     .on("touchstart", dragStart)
     .on("touchend", dragEnd)
@@ -32,8 +34,8 @@ function dragStart(e) {
   if (!$target.hasClass('dragable')) { return }
 
   $target.addClass("active")
-  $rangeHandle.data("leftOffSet", clientX - $rangeHandle.data("leftLastPosition"))
-  $rangeHandle.data("rightOffSet", ($container.width() - clientX) - $rangeHandle.data("rightLastPosition"))
+  $slider.data("leftOffSet", clientX - $slider.data("leftLastPosition"))
+  $slider.data("rightOffSet", ($container.width() - clientX) - $slider.data("rightLastPosition"))
 }
 
 function dragEnd(e) {
@@ -49,22 +51,22 @@ function drag(e) {
   if (!$activeElement.length) { return }
 
   if ($activeElement.data("move").includes("left")) {
-    moveRangeHandle("left", clientX - $rangeHandle.data("leftOffSet"))
+    moveSlider("left", clientX - $slider.data("leftOffSet"))
   }
 
   if ($activeElement.data("move").includes("right")) {
-    moveRangeHandle("right", ($container.width() - clientX) - $rangeHandle.data("rightOffSet"))
+    moveSlider("right", ($container.width() - clientX) - $slider.data("rightOffSet"))
   }
 }
 
-function moveRangeHandle(side, newPosition) {
-  const lastPosition = $rangeHandle.data(`${side}LastPosition`)
+function moveSlider(side, newPosition) {
+  const lastPosition = $slider.data(`${side}LastPosition`)
 
-  if (newPosition >= lastPosition && $rangeHandle.width() <= MINIMUM_WIDTH) {
+  if (newPosition >= lastPosition && $slider.width() <= MINIMUM_WIDTH) {
     return
   }
 
-  updatePosition($rangeHandle, side, newPosition)
+  updatePosition($slider, side, newPosition)
 
   rectifyRangeWidth(side)
 }
@@ -77,13 +79,13 @@ function updatePosition($target, side, _newPosition) {
 }
 
 function rectifyRangeWidth(side) {
-  if ($rangeHandle.width() >= MINIMUM_WIDTH) { return }
+  if ($slider.width() >= MINIMUM_WIDTH) { return }
 
   const oppositeSide = side === "left" ? "right" : "left"
-  const oppositePosition = $rangeHandle.data(`${oppositeSide}LastPosition`)
+  const oppositePosition = $slider.data(`${oppositeSide}LastPosition`)
   const rectifiedPosition = $container.width() - MINIMUM_WIDTH - oppositePosition
 
-  updatePosition($rangeHandle, side, rectifiedPosition)
+  updatePosition($slider, side, rectifiedPosition)
 }
 
 export default init
