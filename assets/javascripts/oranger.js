@@ -5,20 +5,60 @@ const INITIAL_RIGHT = 100
 let MINIMUM_WIDTH = 30
 
 let $body = null
-let $slider = null
-let $oranger = null
-let $sliderHandle1 = null
-let $sliderHandle2 = null
 
-function init() {
+function init(selector) {
+  const oranger = {
+    $slider: null,
+    $container: null,
+
+    dragStart(e) {
+      const $target = $(e.target)
+      const clientX = (e.type === "touchstart") ? e.touches[0].clientX : e.clientX
+
+      if (!$target.hasClass('dragable')) { return }
+
+      $target.addClass("active")
+      $slider.data("leftOffSet", clientX - $slider.data("leftLastPosition"))
+      $slider.data("rightOffSet", ($body.width() - clientX) - $slider.data("rightLastPosition"))
+    },
+
+    dragEnd(e) {
+      oranger.$container.find(".dragable.active").removeClass("active")
+    },
+
+    drag(e) {
+      const $activeElement = oranger.$container.find(".dragable.active")
+      const clientX = (e.type === "touchmove") ? e.touches[0].clientX : e.clientX
+
+      e.preventDefault();
+
+      if (!$activeElement.length) { return }
+
+      if ($activeElement.data("move").includes("left")) {
+        oranger.moveSlider("left", clientX - $slider.data("leftOffSet"))
+      }
+
+      if ($activeElement.data("move").includes("right")) {
+        oranger.moveSlider("right", ($body.width() - clientX) - $slider.data("rightOffSet"))
+      }
+    },
+
+    moveSlider(side, newPosition) {
+      _moveSlider(oranger.$slider, oranger.$container, side, newPosition)
+    },
+  }
+
   $body = $("body")
-  $slider = $(".slider")
-  $oranger = $(".oranger")
-  $sliderHandle1 = $(".sliderHandle1")
-  $sliderHandle2 = $(".sliderHandle2")
+  const $container = $(selector)
+  const $slider = $container.find(".slider")
+  const $sliderHandle1 = $container.find(".sliderHandle1")
+  const $sliderHandle2 = $container.find(".sliderHandle2")
 
-  updatePosition($slider, "left", INITIAL_LEFT)
-  updatePosition($slider, "right", INITIAL_RIGHT)
+  oranger.$container = $container
+  oranger.$slider = $slider
+
+  _updatePosition($slider, "left", INITIAL_LEFT)
+  _updatePosition($slider, "right", INITIAL_RIGHT)
 
   MINIMUM_WIDTH = $sliderHandle1.width() + $sliderHandle2.width()
 
@@ -34,82 +74,48 @@ function init() {
     .addClass("dragable")
     .data("move", "left-right")
 
-  $("body")
-    .on("touchstart", dragStart)
-    .on("touchend", dragEnd)
-    .on("touchmove", drag)
-    .on("mousedown", dragStart)
-    .on("mouseup", dragEnd)
-    .on("mousemove", drag)
+  $body
+    .on("touchstart", oranger.dragStart)
+    .on("touchend", oranger.dragEnd)
+    .on("touchmove", oranger.drag)
+    .on("mousedown", oranger.dragStart)
+    .on("mouseup", oranger.dragEnd)
+    .on("mousemove", oranger.drag)
 
-  window.addEventListener("resize", resize);
+  window.addEventListener("resize", () => {
+    if ($slider.position().left > ($container.width() - MINIMUM_WIDTH)) {
+      _updatePosition($slider, 'left', $container.width() - MINIMUM_WIDTH)
+    }
+  })
 }
 
-function dragStart(e) {
-  const $target = $(e.target)
-  const clientX = (e.type === "touchstart") ? e.touches[0].clientX : e.clientX
-
-  if (!$target.hasClass('dragable')) { return }
-
-  $target.addClass("active")
-  $slider.data("leftOffSet", clientX - $slider.data("leftLastPosition"))
-  $slider.data("rightOffSet", ($body.width() - clientX) - $slider.data("rightLastPosition"))
-}
-
-function dragEnd(e) {
-  $(".dragable.active").removeClass("active")
-}
-
-function drag(e) {
-  const $activeElement = $(".dragable.active")
-  const clientX = (e.type === "touchmove") ? e.touches[0].clientX : e.clientX
-
-  e.preventDefault();
-
-  if (!$activeElement.length) { return }
-
-  if ($activeElement.data("move").includes("left")) {
-    moveSlider("left", clientX - $slider.data("leftOffSet"))
-  }
-
-  if ($activeElement.data("move").includes("right")) {
-    moveSlider("right", ($body.width() - clientX) - $slider.data("rightOffSet"))
-  }
-}
-
-function resize(event) {
-  if ($slider.position().left > ($oranger.width() - MINIMUM_WIDTH)) {
-    updatePosition($slider, 'left', $oranger.width() - MINIMUM_WIDTH)
-  }
-}
-
-function moveSlider(side, newPosition) {
+function _moveSlider($slider, $container, side, newPosition) {
   const lastPosition = $slider.data(`${side}LastPosition`)
 
   if (newPosition >= lastPosition && $slider.width() <= MINIMUM_WIDTH) {
     return
   }
 
-  updatePosition($slider, side, newPosition)
+  _updatePosition($slider, side, newPosition)
 
-  rectifyRangeWidth(side)
+  _rectifyRangeWidth($slider, $container, side)
 }
 
-function updatePosition($target, side, _newPosition) {
+function _updatePosition($target, side, _newPosition) {
   const newPosition = _newPosition < 0 ? 0 : _newPosition
 
   $target.data(`${side}LastPosition`, newPosition)
   $target.css({ [side]: newPosition })
 }
 
-function rectifyRangeWidth(side) {
+function _rectifyRangeWidth($slider, $container, side) {
   if ($slider.width() >= MINIMUM_WIDTH) { return }
 
   const oppositeSide = side === "left" ? "right" : "left"
   const oppositePosition = $slider.data(`${oppositeSide}LastPosition`)
-  const rectifiedPosition = $oranger.width() - MINIMUM_WIDTH - oppositePosition
+  const rectifiedPosition = $container.width() - MINIMUM_WIDTH - oppositePosition
 
-  updatePosition($slider, side, rectifiedPosition)
+  _updatePosition($slider, side, rectifiedPosition)
 }
 
 export default init
