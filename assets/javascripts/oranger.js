@@ -7,14 +7,15 @@ let MINIMUM_WIDTH = 30
 let $body = null
 let $slider = null
 let $oranger = null
+let $sliderHandle1 = null
+let $sliderHandle2 = null
 
 function init() {
   $body = $("body")
   $slider = $(".slider")
   $oranger = $(".oranger")
-
-  const $sliderHandle1 = $(".sliderHandle1")
-  const $sliderHandle2 = $(".sliderHandle2")
+  $sliderHandle1 = $(".sliderHandle1")
+  $sliderHandle2 = $(".sliderHandle2")
 
   updatePosition($slider, "left", INITIAL_LEFT)
   updatePosition($slider, "right", INITIAL_RIGHT)
@@ -40,6 +41,8 @@ function init() {
     .on("mousedown", dragStart)
     .on("mouseup", dragEnd)
     .on("mousemove", drag)
+
+  window.addEventListener("resize", resize);
 }
 
 function dragStart(e) {
@@ -71,6 +74,12 @@ function drag(e) {
 
   if ($activeElement.data("move").includes("right")) {
     moveSlider("right", ($body.width() - clientX) - $slider.data("rightOffSet"))
+  }
+}
+
+function resize(event) {
+  if ($slider.position().left > ($oranger.width() - MINIMUM_WIDTH)) {
+    updatePosition($slider, 'left', $oranger.width() - MINIMUM_WIDTH)
   }
 }
 
