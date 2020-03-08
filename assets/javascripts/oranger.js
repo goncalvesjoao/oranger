@@ -4,20 +4,35 @@ const INITIAL_LEFT = 80
 const INITIAL_RIGHT = 100
 let MINIMUM_WIDTH = 30
 
-let $container = null
+let $body = null
 let $slider = null
+let $oranger = null
 
 function init() {
-  $container = $("body")
+  $body = $("body")
   $slider = $(".slider")
+  $oranger = $(".oranger")
+
+  const $sliderHandle1 = $(".sliderHandle1")
+  const $sliderHandle2 = $(".sliderHandle2")
 
   updatePosition($slider, "left", INITIAL_LEFT)
   updatePosition($slider, "right", INITIAL_RIGHT)
 
-  MINIMUM_WIDTH = $(".sliderHandle1").addClass("dragable").data("move", "left").width() +
-                  $(".sliderHandle2").addClass("dragable").data("move", "right").width()
+  MINIMUM_WIDTH = $sliderHandle1.width() + $sliderHandle2.width()
 
-  $(".sliderRange").addClass("dragable").data("move", "left-right")
+  $sliderHandle1
+    .addClass("dragable")
+    .data("move", "left")
+
+  $sliderHandle2
+    .addClass("dragable")
+    .data("move", "right")
+
+  $(".sliderRange")
+    .addClass("dragable")
+    .data("move", "left-right")
+
   $("body")
     .on("touchstart", dragStart)
     .on("touchend", dragEnd)
@@ -35,7 +50,7 @@ function dragStart(e) {
 
   $target.addClass("active")
   $slider.data("leftOffSet", clientX - $slider.data("leftLastPosition"))
-  $slider.data("rightOffSet", ($container.width() - clientX) - $slider.data("rightLastPosition"))
+  $slider.data("rightOffSet", ($body.width() - clientX) - $slider.data("rightLastPosition"))
 }
 
 function dragEnd(e) {
@@ -55,7 +70,7 @@ function drag(e) {
   }
 
   if ($activeElement.data("move").includes("right")) {
-    moveSlider("right", ($container.width() - clientX) - $slider.data("rightOffSet"))
+    moveSlider("right", ($body.width() - clientX) - $slider.data("rightOffSet"))
   }
 }
 
@@ -83,7 +98,7 @@ function rectifyRangeWidth(side) {
 
   const oppositeSide = side === "left" ? "right" : "left"
   const oppositePosition = $slider.data(`${oppositeSide}LastPosition`)
-  const rectifiedPosition = $container.width() - MINIMUM_WIDTH - oppositePosition
+  const rectifiedPosition = $oranger.width() - MINIMUM_WIDTH - oppositePosition
 
   updatePosition($slider, side, rectifiedPosition)
 }

@@ -23,8 +23,6 @@ h1 {
 @import "./oranger.scss";
 
 .dragable {
-  position: relative;
-
   &:after {
     content: "";
     position: absolute;
