@@ -1,121 +1,144 @@
 import $ from "./jquery"
 
-const INITIAL_LEFT = 80
-const INITIAL_RIGHT = 100
-let MINIMUM_WIDTH = 30
+const defaultSettings = {
+  left: 80,
+  right: 100,
+  minWidth: 30,
+  onChange: function() {},
+  template: `
+<div class="slider">
+  <div class="sliderHandle1 dragable" data-move="left"></div>
+  <div class="sliderRange dragable" data-move="left-right"></div>
+  <div class="sliderHandle2 dragable" data-move="right"></div>
+</div>
+<div class="sliderShadow"></div>
+`
+}
 
-let $body = null
+function oranger(selector, options) {
+  const settings = { ...defaultSettings, ...options }
+  const $body = $("body")
+  const container = typeof selector === 'string' ? document.querySelector(selector) : selector
+  container.classList.add("oranger")
+  container.insertAdjacentHTML('beforeend', settings.template)
 
-function init(selector) {
-  const oranger = {
-    $slider: null,
-    $container: null,
+  const $slider = $(container).find(".slider")
 
-    dragStart(e) {
-      const $target = $(e.target)
-      const clientX = (e.type === "touchstart") ? e.touches[0].clientX : e.clientX
-
-      if (!$target.hasClass('dragable')) { return }
-
-      $target.addClass("active")
-      $slider.data("leftOffSet", clientX - $slider.data("leftLastPosition"))
-      $slider.data("rightOffSet", ($body.width() - clientX) - $slider.data("rightLastPosition"))
+  const finalSettings = {
+    minWidth: container.getElementsByClassName("sliderHandle1").offsetWidth + container.getElementsByClassName("sliderHandle2").offsetWidth,
+    ...settings,
+    $slider,
+    bodyWidth: function () { return window.innerWidth },
+    leftOffSet: null,
+    rightOffSet: null,
+    leftLastPosition: null,
+    rightLastPosition: null,
+    containerWidth: function () { return container.offsetWidth },
+    activeElement: function () {
+      return container.getElementsByClassName("dragable active")[0]
     },
+    handleChange: function () {
+      const newLeft = $slider.position().left
+      const newRight = $slider.position().left + $slider.width()
 
-    dragEnd(e) {
-      oranger.$container.find(".dragable.active").removeClass("active")
-    },
-
-    drag(e) {
-      const $activeElement = oranger.$container.find(".dragable.active")
-      const clientX = (e.type === "touchmove") ? e.touches[0].clientX : e.clientX
-
-      e.preventDefault();
-
-      if (!$activeElement.length) { return }
-
-      if ($activeElement.data("move").includes("left")) {
-        oranger.moveSlider("left", clientX - $slider.data("leftOffSet"))
-      }
-
-      if ($activeElement.data("move").includes("right")) {
-        oranger.moveSlider("right", ($body.width() - clientX) - $slider.data("rightOffSet"))
-      }
-    },
-
-    moveSlider(side, newPosition) {
-      _moveSlider(oranger.$slider, oranger.$container, side, newPosition)
-    },
+      settings.onChange(newLeft, newRight)
+    }
   }
 
-  $body = $("body")
-  const $container = $(selector)
-  const $slider = $container.find(".slider")
-  const $sliderHandle1 = $container.find(".sliderHandle1")
-  const $sliderHandle2 = $container.find(".sliderHandle2")
-
-  oranger.$container = $container
-  oranger.$slider = $slider
-
-  _updatePosition($slider, "left", INITIAL_LEFT)
-  _updatePosition($slider, "right", INITIAL_RIGHT)
-
-  MINIMUM_WIDTH = $sliderHandle1.width() + $sliderHandle2.width()
-
-  $sliderHandle1
-    .addClass("dragable")
-    .data("move", "left")
-
-  $sliderHandle2
-    .addClass("dragable")
-    .data("move", "right")
-
-  $(".sliderRange")
-    .addClass("dragable")
-    .data("move", "left-right")
+  updateSliderPosition(finalSettings, "left", finalSettings.left)
+  updateSliderPosition(finalSettings, "right", finalSettings.right)
 
   $body
-    .on("touchstart", oranger.dragStart)
-    .on("touchend", oranger.dragEnd)
-    .on("touchmove", oranger.drag)
-    .on("mousedown", oranger.dragStart)
-    .on("mouseup", oranger.dragEnd)
-    .on("mousemove", oranger.drag)
+    .on("touchstart", dragStart.bind(finalSettings))
+    .on("touchend", dragEnd.bind(finalSettings))
+    .on("touchmove", drag.bind(finalSettings))
+    .on("mousedown", dragStart.bind(finalSettings))
+    .on("mouseup", dragEnd.bind(finalSettings))
+    .on("mousemove", drag.bind(finalSettings))
 
   window.addEventListener("resize", () => {
-    if ($slider.position().left > ($container.width() - MINIMUM_WIDTH)) {
-      _updatePosition($slider, 'left', $container.width() - MINIMUM_WIDTH)
+    if ($slider.position().left > (finalSettings.containerWidth() - finalSettings.minWidth)) {
+      updateSliderPosition(finalSettings, 'left', finalSettings.containerWidth() - finalSettings.minWidth)
     }
   })
 }
 
-function _moveSlider($slider, $container, side, newPosition) {
-  const lastPosition = $slider.data(`${side}LastPosition`)
+function dragStart(e) {
+  const settings = this
+  const { bodyWidth, leftLastPosition, rightLastPosition } = settings
+  const clientX = (e.type === "touchstart") ? e.touches[0].clientX : e.clientX
 
-  if (newPosition >= lastPosition && $slider.width() <= MINIMUM_WIDTH) {
+  if (!e.target.classList.contains('dragable')) { return }
+
+  e.target.classList.add("active")
+  this.leftOffSet = clientX - leftLastPosition
+  this.rightOffSet = bodyWidth() - clientX - rightLastPosition
+}
+
+function dragEnd() {
+  const activeElement = this.activeElement()
+
+  if (activeElement) { activeElement.classList.remove("active") }
+}
+
+function drag(e) {
+  const settings = this
+  const { bodyWidth, leftOffSet, rightOffSet } = settings
+  const activeElement = settings.activeElement()
+  const clientX = (e.type === "touchmove") ? e.touches[0].clientX : e.clientX
+
+  e.preventDefault();
+
+  if (!activeElement) { return }
+
+  if (activeElement.getAttribute("data-move").includes("left")) {
+    moveSlider(settings, "left", clientX - leftOffSet)
+  }
+
+  if (activeElement.getAttribute("data-move").includes("right")) {
+    moveSlider(settings, "right", bodyWidth() - clientX - rightOffSet)
+  }
+}
+
+function moveSlider(settings, side, newPosition) {
+  const { $slider, minWidth } = settings
+  const lastPosition = settings[`${side}LastPosition`]
+
+  if (newPosition >= lastPosition && $slider.width() <= minWidth) {
     return
   }
 
-  _updatePosition($slider, side, newPosition)
+  updateSliderPosition(settings, side, newPosition)
 
-  _rectifyRangeWidth($slider, $container, side)
+  rectifySliderWidth(settings, side)
 }
 
-function _updatePosition($target, side, _newPosition) {
-  const newPosition = _newPosition < 0 ? 0 : _newPosition
+function rectifySliderWidth(settings, side) {
+  const { $slider, minWidth, containerWidth } = settings
 
-  $target.data(`${side}LastPosition`, newPosition)
-  $target.css({ [side]: newPosition })
-}
-
-function _rectifyRangeWidth($slider, $container, side) {
-  if ($slider.width() >= MINIMUM_WIDTH) { return }
+  if ($slider.width() >= minWidth) { return }
 
   const oppositeSide = side === "left" ? "right" : "left"
-  const oppositePosition = $slider.data(`${oppositeSide}LastPosition`)
-  const rectifiedPosition = $container.width() - MINIMUM_WIDTH - oppositePosition
+  const oppositePosition = settings[`${oppositeSide}LastPosition`]
+  const rectifiedPosition = containerWidth() - minWidth - oppositePosition
 
-  _updatePosition($slider, side, rectifiedPosition)
+  updateSliderPosition(settings, side, rectifiedPosition)
 }
 
-export default init
+function updateSliderPosition(settings, side, _newPosition) {
+  const { $slider, handleChange } = settings
+  const newPosition = _newPosition < 0 ? 0 : _newPosition
+
+  settings[`${side}LastPosition`] = newPosition
+  $slider.css({ [side]: newPosition })
+
+  handleChange()
+}
+
+$.fn.oranger = function(options) {
+  return this.each(function() {
+    oranger(this, options)
+  })
+}
+
+export default oranger
