@@ -1,10 +1,9 @@
-import $ from "./jquery"
-
 const defaultSettings = {
-  left: 80,
-  right: 100,
-  minWidth: 30,
-  onChange: function() {},
+  initLeft: 80,
+  initRight: 100,
+  minWidth: null,
+  onChange: () => {},
+  windowSize: () => { return window.innerWidth },
   template: `
 <div class="slider">
   <div class="sliderHandle1 dragable" data-move="left"></div>
@@ -15,76 +14,68 @@ const defaultSettings = {
 `
 }
 
-function oranger(selector, options) {
-  const settings = { ...defaultSettings, ...options }
-  const $body = $("body")
+function init(selector, settings) {
   const container = typeof selector === 'string' ? document.querySelector(selector) : selector
-  container.classList.add("oranger")
-  container.insertAdjacentHTML('beforeend', settings.template)
 
-  const $slider = $(container).find(".slider")
+  if (container.oranger) { return }
 
-  const finalSettings = {
-    minWidth: container.getElementsByClassName("sliderHandle1").offsetWidth + container.getElementsByClassName("sliderHandle2").offsetWidth,
+  const oranger = {
+    ...defaultSettings,
     ...settings,
-    $slider,
-    bodyWidth: function () { return window.innerWidth },
+    container,
+    drag: (e) => drag(oranger, e),
+    dragEnd: (e) => dragEnd(oranger, e),
+    dragStart: (e) => dragStart(oranger, e),
     leftOffSet: null,
     rightOffSet: null,
     leftLastPosition: null,
     rightLastPosition: null,
-    containerWidth: function () { return container.offsetWidth },
-    activeElement: function () {
-      return container.getElementsByClassName("dragable active")[0]
-    },
-    handleChange: function () {
-      const newLeft = $slider.position().left
-      const newRight = $slider.position().left + $slider.width()
-
-      settings.onChange(newLeft, newRight)
-    }
+    handleWindowResize: () => handleWindowResize(oranger)
   }
 
-  updateSliderPosition(finalSettings, "left", finalSettings.left)
-  updateSliderPosition(finalSettings, "right", finalSettings.right)
+  container.oranger = oranger
+  container.classList.add("oranger")
+  container.insertAdjacentHTML('beforeend', oranger.template)
+  oranger.slider = container.getElementsByClassName("slider")[0]
+  oranger.minWidth = oranger.minWidth ||
+                     container.getElementsByClassName("sliderHandle1")[0].offsetWidth +
+                     container.getElementsByClassName("sliderHandle2")[0].offsetWidth
 
-  $body
-    .on("touchstart", dragStart.bind(finalSettings))
-    .on("touchend", dragEnd.bind(finalSettings))
-    .on("touchmove", drag.bind(finalSettings))
-    .on("mousedown", dragStart.bind(finalSettings))
-    .on("mouseup", dragEnd.bind(finalSettings))
-    .on("mousemove", drag.bind(finalSettings))
+  updateSliderPosition(oranger, "left", oranger.initLeft)
+  updateSliderPosition(oranger, "right", oranger.initRight)
 
-  window.addEventListener("resize", () => {
-    if ($slider.position().left > (finalSettings.containerWidth() - finalSettings.minWidth)) {
-      updateSliderPosition(finalSettings, 'left', finalSettings.containerWidth() - finalSettings.minWidth)
-    }
-  })
+  document.body.addEventListener("touchstart", oranger.dragStart)
+  document.body.addEventListener("touchend", oranger.dragEnd)
+  document.body.addEventListener("touchmove", oranger.drag)
+  document.body.addEventListener("mousedown", oranger.dragStart)
+  document.body.addEventListener("mouseup", oranger.dragEnd)
+  document.body.addEventListener("mousemove", oranger.drag)
+  window.addEventListener("resize", oranger.handleWindowResize)
 }
 
-function dragStart(e) {
-  const settings = this
-  const { bodyWidth, leftLastPosition, rightLastPosition } = settings
+function dragStart(oranger, e) {
+  const { windowSize, leftLastPosition, rightLastPosition } = oranger
   const clientX = (e.type === "touchstart") ? e.touches[0].clientX : e.clientX
 
   if (!e.target.classList.contains('dragable')) { return }
 
   e.target.classList.add("active")
-  this.leftOffSet = clientX - leftLastPosition
-  this.rightOffSet = bodyWidth() - clientX - rightLastPosition
+  oranger.leftOffSet = clientX - leftLastPosition
+  oranger.rightOffSet = windowSize() - clientX - rightLastPosition
 }
 
-function dragEnd() {
-  const activeElement = this.activeElement()
+function dragEnd(oranger) {
+  const { container } = oranger
+  const activeElement = container.getElementsByClassName("dragable active")[0]
 
-  if (activeElement) { activeElement.classList.remove("active") }
+  if (activeElement) {
+    activeElement.classList.remove("active")
+  }
 }
 
-function drag(e) {
-  const settings = this
-  const { bodyWidth, leftOffSet, rightOffSet } = settings
-  const activeElement = settings.activeElement()
+function drag(oranger, e) {
+  const { windowSize, leftOffSet, rightOffSet, container } = oranger
+  const activeElement = container.getElementsByClassName("dragable active")[0]
   const clientX = (e.type === "touchmove") ? e.touches[0].clientX : e.clientX
 
   e.preventDefault();
@@ -92,53 +83,88 @@ function drag(e) {
   if (!activeElement) { return }
 
   if (activeElement.getAttribute("data-move").includes("left")) {
-    moveSlider(settings, "left", clientX - leftOffSet)
+    moveSlider(oranger, "left", clientX - leftOffSet)
   }
 
   if (activeElement.getAttribute("data-move").includes("right")) {
-    moveSlider(settings, "right", bodyWidth() - clientX - rightOffSet)
+    moveSlider(oranger, "right", windowSize() - clientX - rightOffSet)
   }
 }
 
-function moveSlider(settings, side, newPosition) {
-  const { $slider, minWidth } = settings
-  const lastPosition = settings[`${side}LastPosition`]
+function moveSlider(oranger, side, newPosition) {
+  const { slider, minWidth } = oranger
+  const lastPosition = oranger[`${side}LastPosition`]
 
-  if (newPosition >= lastPosition && $slider.width() <= minWidth) {
-    return
-  }
+  if (newPosition >= lastPosition && slider.offsetWidth <= minWidth) { return }
 
-  updateSliderPosition(settings, side, newPosition)
+  updateSliderPosition(oranger, side, newPosition)
 
-  rectifySliderWidth(settings, side)
+  rectifySliderWidth(oranger, side)
 }
 
-function rectifySliderWidth(settings, side) {
-  const { $slider, minWidth, containerWidth } = settings
+function rectifySliderWidth(oranger, side) {
+  const { slider, container, minWidth } = oranger
 
-  if ($slider.width() >= minWidth) { return }
+  if (slider.offsetWidth >= minWidth) { return }
 
   const oppositeSide = side === "left" ? "right" : "left"
-  const oppositePosition = settings[`${oppositeSide}LastPosition`]
-  const rectifiedPosition = containerWidth() - minWidth - oppositePosition
+  const oppositePosition = oranger[`${oppositeSide}LastPosition`]
+  const rectifiedPosition = container.offsetWidth - minWidth - oppositePosition
 
-  updateSliderPosition(settings, side, rectifiedPosition)
+  updateSliderPosition(oranger, side, rectifiedPosition)
 }
 
-function updateSliderPosition(settings, side, _newPosition) {
-  const { $slider, handleChange } = settings
-  const newPosition = _newPosition < 0 ? 0 : _newPosition
+function updateSliderPosition(oranger, side, newPosition) {
+  const { slider } = oranger
 
-  settings[`${side}LastPosition`] = newPosition
-  $slider.css({ [side]: newPosition })
+  oranger[`${side}LastPosition`] = newPosition < 0 ? 0 : newPosition
+  slider.style[side] = oranger[`${side}LastPosition`]
 
-  handleChange()
+  handleChange(oranger)
 }
 
-$.fn.oranger = function(options) {
-  return this.each(function() {
-    oranger(this, options)
-  })
+function handleChange(oranger) {
+  const newLeft = oranger.slider.offsetLeft
+  const newRight = newLeft + oranger.slider.offsetWidth
+
+  oranger.onChange(newLeft, newRight)
 }
 
-export default oranger
+function handleWindowResize(oranger) {
+  const { slider, container, minWidth } = oranger
+
+  if (slider.offsetLeft > (container.offsetWidth - minWidth)) {
+    updateSliderPosition(oranger, 'left', container.offsetWidth - minWidth)
+  }
+}
+
+export function destroy(selector) {
+  const container = typeof selector === 'string' ? document.querySelector(selector) : selector
+  const { oranger } = container
+
+  document.body.removeEventListener("touchstart", oranger.dragStart)
+  document.body.removeEventListener("touchend", oranger.dragEnd)
+  document.body.removeEventListener("touchmove", oranger.drag)
+  document.body.removeEventListener("mousedown", oranger.dragStart)
+  document.body.removeEventListener("mouseup", oranger.dragEnd)
+  document.body.removeEventListener("mousemove", oranger.drag)
+  window.removeEventListener("resize", oranger.handleWindowResize)
+
+  container.classList.remove("oranger")
+  container.innerHTML = ""
+}
+
+export function addTojQuery(jQuery) {
+  jQuery.fn.oranger = function(methodName) {
+    const method = {
+      destroy,
+    }[methodName] || init
+    const args = (method === init) ? arguments : Array.prototype.slice.call(arguments, 1)
+
+    return this.each(function() { method(this, ...args) })
+  }
+}
+
+if ($ && $.name === "jQuery") { addTojQuery($) }
+
+export default init
