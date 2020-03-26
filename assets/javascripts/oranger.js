@@ -37,9 +37,9 @@ function init(selector, settings) {
   container.classList.add("oranger")
   container.insertAdjacentHTML('beforeend', oranger.template)
   oranger.slider = container.getElementsByClassName("slider")[0]
-  oranger.minWidth = oranger.minWidth ||
-                     container.getElementsByClassName("sliderHandle1")[0].offsetWidth +
-                     container.getElementsByClassName("sliderHandle2")[0].offsetWidth
+  oranger.handle1Width = container.getElementsByClassName("sliderHandle1")[0].offsetWidth
+  oranger.handle2Width = container.getElementsByClassName("sliderHandle2")[0].offsetWidth
+  oranger.minWidth = oranger.minWidth || (oranger.handle1Width + oranger.handle2Width)
 
   updateSliderPosition(oranger, "left", oranger.initLeft)
   updateSliderPosition(oranger, "right", oranger.initRight)
@@ -115,19 +115,21 @@ function rectifySliderWidth(oranger, side) {
 }
 
 function updateSliderPosition(oranger, side, newPosition) {
-  const { slider } = oranger
+  const { slider, container, handle2Width } = oranger
+  const hundrenPercentWidth = container.offsetWidth - handle2Width
 
   oranger[`${side}LastPosition`] = newPosition < 0 ? 0 : newPosition
   slider.style[side] = oranger[`${side}LastPosition`]
+  oranger.leftPercentage = (slider.offsetLeft * 100) / hundrenPercentWidth
+  oranger.rightPercentage = ((slider.offsetLeft + slider.offsetWidth - handle2Width) * 100) / hundrenPercentWidth
 
   handleChange(oranger)
 }
 
 function handleChange(oranger) {
-  const newLeft = oranger.slider.offsetLeft
-  const newRight = newLeft + oranger.slider.offsetWidth
+  const { leftPercentage, rightPercentage } = oranger
 
-  oranger.onChange(newLeft, newRight)
+  oranger.onChange(leftPercentage, rightPercentage)
 }
 
 function handleWindowResize(oranger) {
