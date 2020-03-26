@@ -91,18 +91,18 @@ function drag(oranger, e) {
   }
 }
 
-function moveSlider(oranger, side, newPosition) {
+function moveSlider(oranger, side, newPosition, updatePercentage = true) {
   const { slider, minWidth } = oranger
   const lastPosition = oranger[`${side}LastPosition`]
 
   if (newPosition >= lastPosition && slider.offsetWidth <= minWidth) { return }
 
-  updateSliderPosition(oranger, side, newPosition)
+  updateSliderPosition(oranger, side, newPosition, updatePercentage)
 
-  rectifySliderWidth(oranger, side)
+  rectifySliderWidth(oranger, side, updatePercentage)
 }
 
-function rectifySliderWidth(oranger, side) {
+function rectifySliderWidth(oranger, side, updatePercentage = true) {
   const { slider, container, minWidth } = oranger
 
   if (slider.offsetWidth >= minWidth) { return }
@@ -111,17 +111,19 @@ function rectifySliderWidth(oranger, side) {
   const oppositePosition = oranger[`${oppositeSide}LastPosition`]
   const rectifiedPosition = container.offsetWidth - minWidth - oppositePosition
 
-  updateSliderPosition(oranger, side, rectifiedPosition)
+  updateSliderPosition(oranger, side, rectifiedPosition, updatePercentage)
 }
 
-function updateSliderPosition(oranger, side, newPosition) {
+function updateSliderPosition(oranger, side, newPosition, updatePercentage = true) {
   const { slider, container, handle2Width } = oranger
   const hundrenPercentWidth = container.offsetWidth - handle2Width
 
   oranger[`${side}LastPosition`] = newPosition < 0 ? 0 : newPosition
   slider.style[side] = oranger[`${side}LastPosition`]
-  oranger.leftPercentage = (slider.offsetLeft * 100) / hundrenPercentWidth
-  oranger.rightPercentage = ((slider.offsetLeft + slider.offsetWidth - handle2Width) * 100) / hundrenPercentWidth
+  if (updatePercentage) {
+    oranger.leftPercentage = (slider.offsetLeft * 100) / hundrenPercentWidth
+    oranger.rightPercentage = ((slider.offsetLeft + slider.offsetWidth - handle2Width) * 100) / hundrenPercentWidth
+  }
 
   handleChange(oranger)
 }
@@ -133,11 +135,13 @@ function handleChange(oranger) {
 }
 
 function handleWindowResize(oranger) {
-  const { slider, container, minWidth } = oranger
+  const { container, handle2Width, leftPercentage, rightPercentage } = oranger
+  const hundrenPercentWidth = container.offsetWidth - handle2Width
+  const newLeft = Math.round((leftPercentage * hundrenPercentWidth) / 100)
+  const newRight = Math.round((rightPercentage * hundrenPercentWidth) / 100)
 
-  if (slider.offsetLeft > (container.offsetWidth - minWidth)) {
-    updateSliderPosition(oranger, 'left', container.offsetWidth - minWidth)
-  }
+  moveSlider(oranger, 'left', newLeft, false)
+  moveSlider(oranger, 'right', hundrenPercentWidth - newRight, false)
 }
 
 export function destroy(selector) {
